@@ -269,7 +269,10 @@ export function proposeChecks(st) {
   if (behind.length >= 2 || (behind.length && started.length <= 2)) c.add("time");
   if (notStarted.length || (st.grade === "12" && behind.length >= 2) || failing.length) c.add("graduation");
   st.concerns = c;
-  st.satisfactory = !failing.length && !notStarted.length && behind.length <= Math.max(1, Math.floor(started.length / 3));
+  // District policy: Satisfactory when the student is passing at least half of their courses on the
+  // report. Not-started courses count as not passing. Pace does not affect it.
+  const total = started.length + notStarted.length, passing = started.length - failing.length;
+  st.satisfactory = total > 0 && passing * 2 >= total;
 }
 
 // ---------- Draft comments ----------

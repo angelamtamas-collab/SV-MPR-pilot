@@ -15,7 +15,7 @@
 | Subject | SV - MPR - <Month> Overviews | Fixed |
 
 ## Proposed checkboxes (the teacher confirms)
-- **Satisfactory progress: Yes** when every started course has a passing Actual Grade, no course is "Not started",
+- **Satisfactory progress: Yes** when the student is passing at least half (50%) of the courses on the report, per district policy. A course passes at 60% Actual Grade, or 50% if marked Pass/Fail. Not-started courses count as not passing. Pace does not affect it.
   and no more than a third of courses (minimum 1) are behind pace.
 - **Attendance check-ins**: Seaview/ALE absences in Skyward this month.
 - **Time engaged**: two or more courses behind pace (or the only courses behind).

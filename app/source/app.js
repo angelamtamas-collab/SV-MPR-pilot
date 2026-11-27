@@ -156,6 +156,7 @@ function card(st) {
     const att = { absent: `Absent${st.noContact ? " with no contact" : ""}: ${core.formatDates(st.absenceDates)}`, post_checkins: "Meets attendance requirements; needs to post check-ins in Edgenuity", ok: "No attendance concerns", unknown: "Unknown (not in Skyward)" }[st.attendance];
     const checks = el("div", { class: "checks" },
       el("label", { class: "f", text: "Satisfactory monthly progress" }),
+      el("p", { class: "mini", text: "Proposed by district policy: Yes when passing at least half of the courses on the report (not-started courses count as not passing)." }),
       ...[["Yes", true], ["No", false]].map(([t, v]) => el("label", {}, el("input", { type: "radio", name: "sat-" + st.key, checked: st.satisfactory === v, onchange: () => { st.satisfactory = v; refreshChips(); } }), el("span", { text: t }))),
       el("label", { class: "f", text: "Concerns" }),
       ...core.CONCERNS.map(([k, t]) => el("label", {}, el("input", { type: "checkbox", checked: st.concerns.has(k), onchange: e => { e.target.checked ? st.concerns.add(k) : st.concerns.delete(k); } }), el("span", { text: t }))),

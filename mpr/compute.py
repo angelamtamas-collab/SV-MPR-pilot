@@ -116,7 +116,9 @@ def build(edg_pdf, sky_pdf):
         if not_started or (st.get("grade") == "12" and len(behind) >= 2) or failing:
             concerns.append("graduation")
         st["proposed"] = {
-            "satisfactory": not failing and not not_started and len(behind) <= max(1, len(started) // 3),
+            # District policy: Satisfactory when the student is passing at least half of their
+            # courses. Not-started courses count as not passing. Pace does not affect it.
+            "satisfactory": bool(started or not_started) and 2 * (len(started) - len(failing)) >= len(started) + len(not_started),
             "concerns": concerns,
         }
         st["summary"] = {"behind": [r["course"] for r in behind], "not_started": [r["course"] for r in not_started],
