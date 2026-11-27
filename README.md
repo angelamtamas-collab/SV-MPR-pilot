@@ -18,7 +18,8 @@ plus a combined REVIEW PDF, a zip, and a VERIFICATION file that re-checks every 
 ## Option A: the MPR Maker web app (any browser, no AI account needed)
 Open **https://angelamtamas-collab.github.io/SV-MPR-pilot/** (it asks for the staff password), upload your two
 PDFs, review each student, and download the finished folder. Tick **Auto populate comments** in
-step 4 for draft comments, or leave it unticked to write your own. Everything stays in your
+step 4 for draft comments, or leave it unticked to write your own. The folder also includes a class summary PDF listing
+which students need an intervention plan. Everything stays in your
 browser tab. You can also download `app/index.html` and double-click it to open it in Chrome.
 
 ## Option B: with ChatGPT

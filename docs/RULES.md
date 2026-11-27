@@ -28,3 +28,13 @@
   comment reminds the student to post check-ins in Edgenuity; box unchecked.
 - Other-school absences → flagged to the teacher only.
 - Reasons for excused absences are never written into reports.
+
+## Class summary (SUMMARY <Month>.pdf, web app)
+Each download folder includes one summary for the teacher (not for families):
+- **Intervention plan needed:** every student not making Satisfactory progress, with passing count
+  and why (courses not passing, not started, Seaview/ALE absences).
+- **Watch list:** Satisfactory students who are behind pace in any course.
+- **Attendance:** absence dates and students who need to post Edgenuity check-ins.
+- **Notes to check:** students missing from either export and students with no email recipients.
+- **All students:** one line each with Satisfactory, passing count, courses behind and attendance.
+
