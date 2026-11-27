@@ -1,0 +1,17 @@
+# NEVER commit student data. Exports, reports and working files stay out of this repo.
+*.pdf
+!templates/*.pdf
+*.csv
+*.xlsx
+*.xls
+*.zip
+*.json
+!examples/*.json
+mpr_data*
+/comments*.json
+MPR DV */
+VERIFICATION*
+work/
+uploads/
+__pycache__/
+.DS_Store
