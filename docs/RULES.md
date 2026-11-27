@@ -2,11 +2,11 @@
 
 | Report field | Rule | Source |
 | --- | --- | --- |
-| Actual Grade | Grade on completed work (Edgenuity OG) | Edgenuity |
-| Grade | A 93+, A- 90, B+ 87, B 83, B- 80, C+ 77, C 73, C- 70, D+ 67, D 60, F below 60 | Calculated |
-| Grade On Target? | Yes at 60% or above | Calculated |
+| Actual Grade | Edgenuity **Actual Grade** (AG): the grade on completed work, lowered when the student is behind pace. Never the Overall Grade. | Edgenuity |
+| Grade | Letter for the Actual Grade: A 93+, A- 90, B+ 87, B 83, B- 80, C+ 77, C 73, C- 70, D+ 67, D 60, F below 60 | Calculated |
+| Grade On Target? | Yes when the Actual Grade is 60% or above | Calculated |
 | Percent Complete | % (Time), rounded | Edgenuity |
-| Goal | Where the student should be today: %Time x OG / AG, capped at 100%. "On pace" when AG equals OG | Calculated |
+| Goal | Where the student should be today: %Time x Overall / Actual, capped at 100%. "On pace" when Actual equals Overall | Calculated |
 | Completion On Target? | Yes when on pace or within 5 points of the goal | Calculated |
 | Not started | 0% complete and no grade: "Not started", On Target No (teacher decides whether to keep it) | Edgenuity |
 | Grade Level | Grade listed in Skyward | Skyward |
@@ -14,7 +14,7 @@
 | Subject | SV - MPR - <Month> Overviews | Fixed |
 
 ## Proposed checkboxes (the teacher confirms)
-- **Satisfactory progress: Yes** when every started course is passing, no course is "Not started",
+- **Satisfactory progress: Yes** when every started course has a passing Actual Grade, no course is "Not started",
   and no more than a third of courses (minimum 1) are behind pace.
 - **Attendance check-ins**: Seaview/ALE absences in Skyward this month.
 - **Time engaged**: two or more courses behind pace (or the only courses behind).

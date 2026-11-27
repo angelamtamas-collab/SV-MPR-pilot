@@ -108,14 +108,14 @@ def build_one(st, c, month, path, hdr, F):
             rows.append([Paragraph(escape(r["course"]), CL), Paragraph("—", CH), Paragraph("—", CH), Paragraph("—", CH),
                          Paragraph('0%<br/><font size="7">Not started</font>', CH), Paragraph("No", CH)])
         else:
-            rows.append([Paragraph(escape(r["course"]), CL), Paragraph(f"{r['og']:.1f}%", CH), Paragraph(r["letter"], CH),
+            rows.append([Paragraph(escape(r["course"]), CL), Paragraph(f"{r['actual']:.1f}%", CH), Paragraph(r["letter"], CH),
                          Paragraph("Yes" if r["grade_on_target"] else "No", CH),
                          Paragraph(f'{r["percent"]}%<br/><font size="7">{r["goal_label"]}</font>', CH),
                          Paragraph("Yes" if r["complete_on_target"] else "No", CH)])
     t = Table(rows, colWidths=[2.35 * inch, 0.9 * inch, 0.75 * inch, 1.05 * inch, 1.1 * inch, 1.15 * inch], repeatRows=1)
     t.setStyle([("GRID", (0, 0), (-1, -1), 0.75, colors.black), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)])
-    st_ += [t, Spacer(1, 3), Paragraph("Actual Grade is the grade on completed work. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", SM), Spacer(1, 10),
+    st_ += [t, Spacer(1, 3), Paragraph("Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", SM), Spacer(1, 10),
             Paragraph("See attached Session Log for detailed account of time logged into Edgenuity and number of activities completed.", B), Spacer(1, 10),
             Paragraph("Student is making Satisfactory Monthly progress as evidenced by gradebook snapshot:", B),
             cb("Yes", sat), cb("No", not sat), Spacer(1, 10), Paragraph("There are concerns with:", B)]
@@ -143,7 +143,7 @@ def verify(students, comments, files):
         for r in st["courses"]:
             if r["course"] in set(c.get("exclude_courses", [])) or not r["started"]:
                 continue
-            for v in (f"{r['og']:.1f}%", f"{r['percent']}%"):
+            for v in (f"{r['actual']:.1f}%", f"{r['percent']}%"):
                 if txt and v not in txt:
                     problems.append(f"{st['display_name']}: {r['course']} value {v} not found in PDF")
         if not st["recipients"]:

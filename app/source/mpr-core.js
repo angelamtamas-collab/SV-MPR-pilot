@@ -201,10 +201,11 @@ export function cleanCourse(name) {
 
 function courseRow(c) {
   if (c.og === 0 && c.time === 0)
-    return { course: cleanCourse(c.name), started: false, og: null, letter: "—", gradeOk: null, percent: 0, goal: null, goalLabel: "Not started", completeOk: false, keep: true, src: c };
+    return { course: cleanCourse(c.name), started: false, actual: null, overall: null, letter: "—", gradeOk: null, percent: 0, goal: null, goalLabel: "Not started", completeOk: false, keep: true, src: c };
   const onPace = c.ag >= c.og - 0.05;
   const goal = onPace ? null : (c.ag > 0 ? Math.min(100, c.time * c.og / c.ag) : 100);
-  return { course: cleanCourse(c.name), started: true, og: c.og, letter: letter(c.og), gradeOk: c.og >= 60,
+  // The report shows Edgenuity's ACTUAL grade (ag), not the Overall grade (og).
+  return { course: cleanCourse(c.name), started: true, actual: c.ag, overall: c.og, letter: letter(c.ag), gradeOk: c.ag >= 60,
     percent: Math.round(c.time), goal, goalLabel: goal === null ? "Goal: on pace" : `Goal: ${Math.round(goal)}%`,
     completeOk: goal === null || c.time >= goal - 5, keep: true, src: c };
 }
@@ -290,13 +291,13 @@ export function draftComment(st) {
   const behind = started.filter(r => !r.completeOk).sort((a, b) => ((b.goal || 0) - b.percent) - ((a.goal || 0) - a.percent));
   const notStarted = st.courses.filter(r => !r.started && r.keep);
   const done = started.filter(r => r.percent >= 100);
-  const strong = started.filter(r => r.og >= 90);
+  const strong = started.filter(r => r.actual >= 90);
   const onPace = !behind.length && !notStarted.length;
   const tail = onPace ? " and is on pace in every course" : "";
   const s = [];
   if (done.length) s.push(`Congratulations to ${first} on finishing ${join(done.map(r => r.course))}!`);
-  if (strong.length) s.push(`${first} is earning A's on completed work in ${join(strong.slice(0, 3).map(r => r.course))}${tail}.`);
-  else if (started.length && started.every(r => r.gradeOk)) s.push(`${first} is passing every course with work turned in${tail}.`);
+  if (strong.length) s.push(`${first} has ${strong.length === 1 ? "an A" : "A's"} in ${join(strong.slice(0, 3).map(r => r.course))}${tail}.`);
+  else if (started.length && started.every(r => r.gradeOk)) s.push(`${first} is passing every course${tail}.`);
   else if (onPace) s.push(`${first} is on pace in every course.`);
   if (!onPace) {
     const bits = behind.slice(0, 2).map(r => `${r.course} is ${r.percent}% complete (goal about ${Math.round(r.goal)}%)`);
@@ -319,7 +320,7 @@ export function claudePrompt(st, teacher) {
   const data = {
     student_first_name: st.first, grade_level: st.grade,
     courses: st.courses.filter(r => r.keep).map(r => r.started
-      ? { course: r.course, grade_on_completed_work: `${r.og}% (${r.letter})`, percent_complete: r.percent, goal_percent_today: r.goal === null ? "on pace" : Math.round(r.goal), on_pace: r.completeOk }
+      ? { course: r.course, actual_grade: `${r.actual}% (${r.letter})`, percent_complete: r.percent, goal_percent_today: r.goal === null ? "on pace" : Math.round(r.goal), on_pace: r.completeOk }
       : { course: r.course, status: "not started" }),
     attendance: st.attendance === "absent" ? `Absent${st.noContact ? " with no contact" : ""}: ${formatDates(st.absenceDates)}`
       : st.attendance === "post_checkins" ? "Meeting attendance requirements, but needs to post attendance check-ins in Edgenuity" : "No concerns",
@@ -410,7 +411,7 @@ export async function buildReport(PDFLib, st, opt) {
     const mid = y - hgt / 2;
     nl.forEach((l, j) => text(l, xs[0] + 6, mid + (nl.length - 1) * 6 - j * 12 - 3.5, B, 10));
     if (r.started) {
-      cell(1, `${r.og.toFixed(1)}%`, B, 10, mid - 3.5); cell(2, r.letter, B, 10, mid - 3.5); cell(3, r.gradeOk ? "Yes" : "No", B, 10, mid - 3.5);
+      cell(1, `${r.actual.toFixed(1)}%`, B, 10, mid - 3.5); cell(2, r.letter, B, 10, mid - 3.5); cell(3, r.gradeOk ? "Yes" : "No", B, 10, mid - 3.5);
       cell(4, `${r.percent}%`, B, 10, mid + 1); cell(4, r.goalLabel, B, 7, mid - 9); cell(5, r.completeOk ? "Yes" : "No", B, 10, mid - 3.5);
     } else {
       for (const k of [1, 2, 3]) cell(k, "—", B, 10, mid - 3.5);
@@ -419,7 +420,7 @@ export async function buildReport(PDFLib, st, opt) {
     y -= hgt;
   }
   y -= 4;
-  for (const l of wrap("Actual Grade is the grade on completed work. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
+  for (const l of wrap("Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
   y -= 6;
   for (const l of wrap("See attached Session Log for detailed account of time logged into Edgenuity and number of activities completed.", B, 10.5, W - 2 * M)) { need(14); text(l, M, y - 9, B); y -= 14; }
   y -= 8; need(14); text("Student is making Satisfactory Monthly progress as evidenced by gradebook snapshot:", M, y - 9, B); y -= 14;
@@ -455,7 +456,7 @@ export async function pdfText(pdfjsLib, bytes) {
 export function verifyText(st, text) {
   const probs = [];
   for (const r of st.courses.filter(r => r.keep && r.started))
-    for (const v of [`${r.og.toFixed(1)}%`, `${r.percent}%`]) if (!text.includes(v)) probs.push(`${st.name}: ${r.course} ${v} missing`);
+    for (const v of [`${r.actual.toFixed(1)}%`, `${r.percent}%`]) if (!text.includes(v)) probs.push(`${st.name}: ${r.course} ${v} missing`);
   if (!text.includes(st.name)) probs.push(`${st.name}: name missing`);
   return probs;
 }

@@ -40,12 +40,13 @@ def clean_course(name):
 def course_row(c):
     if c["og"] == 0 and c["time"] == 0:
         return {"course": clean_course(c["name"]), "raw_name": c["name"], "started": False,
-                "og": None, "letter": "—", "grade_on_target": None, "percent": 0,
+                "actual": None, "overall": None, "letter": "—", "grade_on_target": None, "percent": 0,
                 "goal": None, "goal_label": "Not started", "complete_on_target": False, "source": c}
     on_pace = c["ag"] >= c["og"] - 0.05
     goal = None if on_pace else min(100.0, c["time"] * c["og"] / c["ag"]) if c["ag"] > 0 else 100.0
     return {"course": clean_course(c["name"]), "raw_name": c["name"], "started": True,
-            "og": c["og"], "letter": letter(c["og"]), "grade_on_target": c["og"] >= PASSING,
+            # The report shows Edgenuity's ACTUAL grade (ag), not the Overall grade (og).
+            "actual": c["ag"], "overall": c["og"], "letter": letter(c["ag"]), "grade_on_target": c["ag"] >= PASSING,
             "percent": round(c["time"]), "goal": goal,
             "goal_label": "Goal: on pace" if goal is None else f"Goal: {round(goal)}%",
             "complete_on_target": goal is None or c["time"] >= goal - NEAR_GOAL, "source": c}

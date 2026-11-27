@@ -56,16 +56,16 @@ def draft(st):
                     key=lambda r: (r["goal"] or 0) - r["percent"], reverse=True)
     not_started = [r for r in st["courses"] if not r["started"]]
     done = [r for r in started if r["percent"] >= 100]
-    strong = [r for r in started if r["og"] >= 90]
+    strong = [r for r in started if r["actual"] >= 90]
     s = []
     if done:
         s.append(f"Congratulations to {first} on finishing {join(r['course'] for r in done)}!")
     on_pace = not behind and not not_started
     tail = " and is on pace in every course" if on_pace else ""
     if strong:
-        s.append(f"{first} is earning A's on completed work in {join(r['course'] for r in strong[:3])}{tail}.")
+        s.append(f"{first} has {'an A' if len(strong) == 1 else 'A\'s'} in {join(r['course'] for r in strong[:3])}{tail}.")
     elif started and all(r["grade_on_target"] for r in started):
-        s.append(f"{first} is passing every course with work turned in{tail}.")
+        s.append(f"{first} is passing every course{tail}.")
     elif on_pace:
         s.append(f"{first} is on pace in every course.")
     if not on_pace:

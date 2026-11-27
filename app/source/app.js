@@ -134,11 +134,11 @@ function card(st) {
     if (st.flags.length) body.append(el("ul", { class: "flags" }, st.flags.map(f => el("li", { text: f }))));
     const rows = st.courses.map(r => el("tr", {},
       el("td", {}, el("input", { type: "checkbox", checked: r.keep, "aria-label": "Include " + r.course, onchange: e => { r.keep = e.target.checked; core.proposeChecks(st); build(); refreshChips(); } })),
-      el("td", { text: r.course }), el("td", { text: r.started ? r.og.toFixed(1) + "%" : "—" }), el("td", { text: r.letter }),
+      el("td", { text: r.course }), el("td", { text: r.started ? r.actual.toFixed(1) + "%" : "—" }), el("td", { text: r.letter }), el("td", { class: "mini", text: r.started ? r.overall.toFixed(1) + "%" : "—" }),
       el("td", { text: r.started ? r.percent + "%" : "0%" }), el("td", { text: r.goalLabel.replace("Goal: ", "") }),
       el("td", { text: r.started ? (r.completeOk ? "Yes" : "No") : "No" })));
     body.append(el("div", { class: "scroll" }, el("table", { class: "courses" },
-      el("thead", {}, el("tr", {}, ["On report", "Course", "Grade", "Letter", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
+      el("thead", {}, el("tr", {}, ["On report", "Course", "Actual grade", "Letter", "Overall (not on report)", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
       el("tbody", {}, rows))));
     const recips = el("div", { class: "recips" }, el("label", { class: "f", text: "Email recipients (untick anyone who must not receive it)" }),
       st.recipients.length ? st.recipients.map(r => el("label", {}, el("input", { type: "checkbox", checked: r.send, onchange: e => { r.send = e.target.checked; refreshChips(); } }),
