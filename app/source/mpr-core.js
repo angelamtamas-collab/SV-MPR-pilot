@@ -360,7 +360,7 @@ function safe(t) {
 }
 function wrap(text, font, size, width) {
   const out = [];
-  for (const para of safe(text).split("\n")) {
+  for (const para of String(text).split("\n").map(safe)) {
     let line = "";
     for (const word of para.split(/\s+/)) {
       const t = line ? line + " " + word : word;
@@ -487,48 +487,56 @@ export function studentStats(st) {
   return { total: kept.length, passing: started.length - failing.length, failing, notStarted, behind };
 }
 
-export async function buildSummary(PDFLib, students, globalFlags, opt) {
+// Shared layout for the teacher-only PDFs (class summary, email list).
+async function pdfKit(PDFLib, title) {
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const doc = await PDFDocument.create();
-  doc.setTitle(`MPR Summary - ${opt.month}`); doc.setAuthor("Seaview Academy");
+  doc.setTitle(title); doc.setAuthor("Seaview Academy");
   const R = await doc.embedFont(StandardFonts.Helvetica), B = await doc.embedFont(StandardFonts.HelveticaBold), I = await doc.embedFont(StandardFonts.HelveticaOblique);
   const ink = rgb(0.06, 0.16, 0.23), teal = rgb(0.17, 0.44, 0.56), red = rgb(0.70, 0.21, 0.12), grey = rgb(0.4, 0.4, 0.4), line = rgb(0.8, 0.85, 0.88);
   const CW = W - 2 * M;
-  let page, y, pageNo = 0;
-  const newPage = () => { page = doc.addPage([W, H]); y = H - 46; pageNo++; page.drawText(safe(`MPR Summary - ${opt.month}   |   page ${pageNo}`), { x: M, y: 24, size: 8, font: R, color: grey }); };
-  newPage();
-  const need = h => { if (y - h < 40) newPage(); };
-  const write = (t, f = R, s = 10, c = ink, x = M, w = CW) => { for (const l of wrap(t, f, s, w)) { need(s + 4); page.drawText(l, { x, y: y - s, size: s, font: f, color: c }); y -= s + 4; } };
-  const heading = (t, c = teal) => { y -= 10; need(40); page.drawText(safe(t), { x: M, y: y - 13, size: 13, font: B, color: c }); y -= 18; page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1, color: c }); y -= 6; };
-  const table = (cols, head, rows) => {
+  const k = { doc, R, B, I, ink, teal, red, grey, line, CW, page: null, y: 0, pageNo: 0 };
+  k.newPage = () => { k.page = doc.addPage([W, H]); k.y = H - 46; k.pageNo++; k.page.drawText(safe(`${title}   |   page ${k.pageNo}`), { x: M, y: 24, size: 8, font: R, color: grey }); };
+  k.newPage();
+  k.need = h => { if (k.y - h < 40) k.newPage(); };
+  k.write = (t, f = R, sz = 10, c = ink, x = M, w = CW) => { for (const l of wrap(t, f, sz, w)) { k.need(sz + 4); k.page.drawText(l, { x, y: k.y - sz, size: sz, font: f, color: c }); k.y -= sz + 4; } };
+  k.title = (t, sub) => { k.page.drawText(safe(t), { x: M, y: k.y - 20, size: 20, font: B, color: ink }); k.y -= 30; if (sub) k.write(sub, R, 10, grey); };
+  k.heading = (t, c = teal) => { k.y -= 10; k.need(40); k.page.drawText(safe(t), { x: M, y: k.y - 13, size: 13, font: B, color: c }); k.y -= 18; k.page.drawLine({ start: { x: M, y: k.y }, end: { x: W - M, y: k.y }, thickness: 1, color: c }); k.y -= 6; };
+  k.table = (cols, head, rows) => {
     const xs = cols.reduce((a, w, i) => (a.push(a[i] + w * CW), a), [M]);
-    const drawHead = () => { need(18); head.forEach((h, i) => page.drawText(safe(h), { x: xs[i] + 3, y: y - 11, size: 8.5, font: B, color: grey })); y -= 15; page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.6, color: line }); };
+    const drawHead = () => { k.need(18); head.forEach((h, i) => k.page.drawText(safe(h), { x: xs[i] + 3, y: k.y - 11, size: 8.5, font: B, color: grey })); k.y -= 15; k.page.drawLine({ start: { x: M, y: k.y }, end: { x: W - M, y: k.y }, thickness: 0.6, color: line }); };
     drawHead();
     for (const r of rows) {
       const cells = r.map((t, i) => wrap(String(t), i === 0 ? B : R, 9, cols[i] * CW - 6));
       const h = Math.max(...cells.map(c => c.length)) * 11.5 + 6;
-      if (y - h < 40) { newPage(); drawHead(); }
-      cells.forEach((ls, i) => ls.forEach((l, j) => page.drawText(l, { x: xs[i] + 3, y: y - 12 - j * 11.5, size: 9, font: i === 0 ? B : R, color: ink })));
-      y -= h; page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.4, color: line });
+      if (k.y - h < 40) { k.newPage(); drawHead(); }
+      cells.forEach((ls, i) => ls.forEach((l, j) => k.page.drawText(l, { x: xs[i] + 3, y: k.y - 12 - j * 11.5, size: 9, font: i === 0 ? B : R, color: ink })));
+      k.y -= h; k.page.drawLine({ start: { x: M, y: k.y }, end: { x: W - M, y: k.y }, thickness: 0.4, color: line });
     }
   };
+  return k;
+}
+
+export async function buildSummary(PDFLib, students, globalFlags, opt) {
+  const k = await pdfKit(PDFLib, `MPR Summary - ${opt.month}`);
+  const { R, B, I, ink, teal, red, grey, CW } = k;
+  const write = k.write, heading = k.heading, table = k.table, need = h => k.need(h);
   const fmtCourse = r => `${r.course} (${r.actual.toFixed(1)}%)`;
   const stats = students.map(st => ({ st, ...studentStats(st) }));
   const unsat = stats.filter(s => !s.st.satisfactory), sat = stats.filter(s => s.st.satisfactory);
 
   // Title block
-  page.drawText(safe(`MPR Summary - ${opt.month}`), { x: M, y: y - 20, size: 20, font: B, color: ink }); y -= 30;
-  write([opt.teacher && `Teacher: ${opt.teacher}`, opt.dateTaken && `Data pulled: ${opt.dateTaken}`, `${students.length} students`].filter(Boolean).join("   |   "), R, 10, grey);
-  y -= 6;
+  k.title(`MPR Summary - ${opt.month}`, [opt.teacher && `Teacher: ${opt.teacher}`, opt.dateTaken && `Data pulled: ${opt.dateTaken}`, `${students.length} students`].filter(Boolean).join("   |   "));
+  k.y -= 6;
   const boxW = (CW - 16) / 3, boxes = [[String(sat.length), "Satisfactory", teal], [String(unsat.length), "Need an intervention plan", red], [String(stats.filter(s => s.st.satisfactory && s.behind.length).length), "Satisfactory but behind pace", ink]];
   need(56);
   boxes.forEach(([n, l, c], i) => {
     const x = M + i * (boxW + 8);
-    page.drawRectangle({ x, y: y - 50, width: boxW, height: 50, borderColor: c, borderWidth: 1 });
-    page.drawText(n, { x: x + 10, y: y - 28, size: 20, font: B, color: c });
-    page.drawText(safe(l), { x: x + 10, y: y - 43, size: 8.5, font: R, color: ink });
+    k.page.drawRectangle({ x, y: k.y - 50, width: boxW, height: 50, borderColor: c, borderWidth: 1 });
+    k.page.drawText(n, { x: x + 10, y: k.y - 28, size: 20, font: B, color: c });
+    k.page.drawText(safe(l), { x: x + 10, y: k.y - 43, size: 8.5, font: R, color: ink });
   });
-  y -= 58;
+  k.y -= 58;
   write("Satisfactory follows district policy: passing at least half of the courses on the report (60% Actual Grade, or 50% for Pass/Fail courses). Not-started courses count as not passing.", I, 8, grey);
 
   heading("Intervention plan needed (not making Satisfactory progress)", red);
@@ -550,7 +558,7 @@ export async function buildSummary(PDFLib, students, globalFlags, opt) {
   heading("Attendance");
   if (!absent.length && !checkins.length) write("No attendance concerns this month.");
   if (absent.length) table([0.32, 0.68], ["Absent (Seaview/ALE)", "Dates"], absent.map(s => [s.st.name, `${formatDates(s.st.absenceDates)}${s.st.noContact ? " (no contact)" : ""}`]));
-  if (checkins.length) { y -= 4; write(`Meeting attendance requirements but need to post Edgenuity check-ins: ${checkins.map(s => s.st.name).join(", ")}.`); }
+  if (checkins.length) { k.y -= 4; write(`Meeting attendance requirements but need to post Edgenuity check-ins: ${checkins.map(s => s.st.name).join(", ")}.`); }
 
   const notes = [...globalFlags, ...stats.filter(s => !s.st.recipients.some(r => r.send)).map(s => `${s.st.name}: no email recipients selected.`),
     ...stats.filter(s => s.st.attendance === "unknown").map(s => `${s.st.name}: not found in the Skyward report.`)];
@@ -562,5 +570,28 @@ export async function buildSummary(PDFLib, students, globalFlags, opt) {
   table([0.26, 0.08, 0.16, 0.12, 0.14, 0.24], ["Student", "Grade", "Satisfactory", "Passing", "Behind pace", "Attendance"], stats.map(s => [
     s.st.name, s.st.grade || "-", s.st.satisfactory ? "Yes" : "No - plan", `${s.passing} of ${s.total}`, String(s.behind.length),
     { absent: "Absent", post_checkins: "Post check-ins", ok: "OK", unknown: "Not in Skyward" }[s.st.attendance] || "-"]));
-  return doc.save();
+  return k.doc.save();
+}
+
+// Every student and family email for the month, for the teacher's records and for sending.
+export async function buildEmailList(PDFLib, students, opt) {
+  const k = await pdfKit(PDFLib, `MPR Email List - ${opt.month}`);
+  const sorted = [...students].sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
+  const sent = sorted.flatMap(st => st.recipients.filter(r => r.send));
+  k.title(`MPR Email List - ${opt.month}`, [opt.teacher && `Teacher: ${opt.teacher}`, `${students.length} students`, `${sent.length} email addresses`, `Subject: ${opt.subject}`].filter(Boolean).join("   |   "));
+  k.write("Only the recipients ticked in the review step are listed. Each student's report shows the same recipients at the top.", k.I, 8, k.grey);
+  k.heading("By student");
+  k.table([0.22, 0.08, 0.7], ["Student", "Grade", "Send to"], sorted.map(st => {
+    const rs = st.recipients.filter(r => r.send);
+    const off = st.recipients.filter(r => !r.send);
+    return [st.name, st.grade || "-", (rs.length ? rs.map(r => `${r.name} (${r.relationship}): ${r.email}`).join("\n") : "No email selected") +
+      (off.length ? `\nNot sending to: ${off.map(r => `${r.name} (${r.relationship})`).join(", ")}` : "")];
+  }));
+  const missing = sorted.filter(st => !st.recipients.some(r => r.send));
+  if (missing.length) { k.heading("No email address", k.red); k.write(missing.map(st => st.name).join(", ")); }
+  k.heading("All addresses (copy and paste)");
+  k.write("Student emails: " + (sorted.flatMap(st => st.recipients.filter(r => r.send && r.relationship === "student").map(r => r.email)).join("; ") || "none"), k.R, 9);
+  k.y -= 4;
+  k.write("Family emails: " + ([...new Set(sorted.flatMap(st => st.recipients.filter(r => r.send && r.relationship !== "student").map(r => r.email)))].join("; ") || "none"), k.R, 9);
+  return k.doc.save();
 }

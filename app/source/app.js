@@ -215,7 +215,9 @@ $("build").addEventListener("click", async () => {
     status("statBuild", "Building the class summary…");
     const summary = await core.buildSummary(PDFLib, state.students, state.flags, o);
     dir.file(`SUMMARY ${month}.pdf`, summary);
-    state.built = { zip: await zip.generateAsync({ type: "blob" }), review: new Blob([await review.save()], { type: "application/pdf" }), summary: new Blob([summary], { type: "application/pdf" }), folder };
+    const emails = await core.buildEmailList(PDFLib, state.students, o);
+    dir.file(`EMAIL LIST ${month}.pdf`, emails);
+    state.built = { zip: await zip.generateAsync({ type: "blob" }), review: new Blob([await review.save()], { type: "application/pdf" }), summary: new Blob([summary], { type: "application/pdf" }), emails: new Blob([emails], { type: "application/pdf" }), folder };
     $("resultText").textContent = problems.length ? `${state.students.length} reports built. Check these first: ${problems.join("; ")}` : `${state.students.length} reports built. Every grade and percentage matched your data.`;
     $("result").hidden = false; status("statBuild", "", ""); mark(5, true);
     $("dlNote").textContent = "";
@@ -230,6 +232,7 @@ async function save(filename, blob) {
 $("dlZip").addEventListener("click", () => state.built && save(state.built.folder + ".zip", state.built.zip));
 $("dlReview").addEventListener("click", () => state.built && save(state.built.folder + " - REVIEW.pdf", state.built.review));
 $("dlSummary").addEventListener("click", () => state.built && save(state.built.folder + " - SUMMARY.pdf", state.built.summary));
+$("dlEmails").addEventListener("click", () => state.built && save(state.built.folder + " - EMAIL LIST.pdf", state.built.emails));
 
 // ---------- Preview ----------
 async function previewOne(st) {

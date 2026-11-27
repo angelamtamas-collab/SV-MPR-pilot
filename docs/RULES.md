@@ -38,3 +38,7 @@ Each download folder includes one summary for the teacher (not for families):
 - **Notes to check:** students missing from either export and students with no email recipients.
 - **All students:** one line each with Satisfactory, passing count, courses behind and attendance.
 
+## Email list (EMAIL LIST <Month>.pdf, web app)
+Each download folder also includes an email list for the teacher: every student with the student
+and family addresses ticked in the review step, anyone left off on purpose, students with no
+email, and all of the month's addresses on one line for copying into an email.
