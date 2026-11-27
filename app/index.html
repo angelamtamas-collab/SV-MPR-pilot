@@ -66,6 +66,8 @@ table.courses{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0 10
 table.courses th,table.courses td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right;white-space:nowrap}
 table.courses th:first-child,table.courses td:first-child,table.courses th:nth-child(2),table.courses td:nth-child(2){text-align:left}
 table.courses td:nth-child(2){white-space:normal}
+table.courses td:nth-child(2){min-width:9em}
+.gradein{width:6.5em;padding:6px 8px;text-align:right}
 .recips label,.checks label{display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:15px}
 .recips input,.checks input{width:18px;height:18px;margin-top:3px;flex:none}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px}
@@ -438,9 +440,17 @@ function courseRow(c) {
   const onPace = c.ag >= c.og - 0.05;
   const goal = onPace ? null : (c.ag > 0 ? Math.min(100, c.time * c.og / c.ag) : 100);
   // The report shows Edgenuity's ACTUAL grade (ag), not the Overall grade (og).
-  return { course: cleanCourse(c.name), started: true, actual: c.ag, overall: c.og, letter: letter(c.ag), gradeOk: c.ag >= 60,
+  return { course: cleanCourse(c.name), started: true, actual: c.ag, edgActual: c.ag, overall: c.og, passFail: false, letter: letter(c.ag), gradeOk: c.ag >= 60,
     percent: Math.round(c.time), goal, goalLabel: goal === null ? "Goal: on pace" : `Goal: ${Math.round(goal)}%`,
     completeOk: goal === null || c.time >= goal - 5, keep: true, src: c };
+}
+
+// Re-apply the grade rules after a teacher edits a grade (e.g. extra credit) or marks a course Pass/Fail.
+// Pass/Fail courses pass at 50%; letter-graded courses pass at 60%.
+function applyGrade(r) {
+  if (!r.started) return;
+  r.gradeOk = r.actual >= (r.passFail ? 50 : 60);
+  r.letter = r.passFail ? (r.gradeOk ? "Pass" : "Fail") : letter(r.actual);
 }
 
 function matchSky(e, sky) {
@@ -489,7 +499,7 @@ function proposeChecks(st) {
   const behind = started.filter(r => !r.completeOk);
   const notStarted = st.courses.filter(r => !r.started && r.keep);
   const failing = started.filter(r => !r.gradeOk);
-  const c = new Set();
+  const c = new Set([...(st.concerns || [])].filter(k => k === "communications" || k === "wslp"));
   if (st.attendance === "absent") c.add("attendance");
   if (behind.length >= 2 || (behind.length && started.length <= 2)) c.add("time");
   if (notStarted.length || (st.grade === "12" && behind.length >= 2) || failing.length) c.add("graduation");
@@ -524,7 +534,7 @@ function draftComment(st) {
   const behind = started.filter(r => !r.completeOk).sort((a, b) => ((b.goal || 0) - b.percent) - ((a.goal || 0) - a.percent));
   const notStarted = st.courses.filter(r => !r.started && r.keep);
   const done = started.filter(r => r.percent >= 100);
-  const strong = started.filter(r => r.actual >= 90);
+  const strong = started.filter(r => !r.passFail && r.actual >= 90);
   const onPace = !behind.length && !notStarted.length;
   const tail = onPace ? " and is on pace in every course" : "";
   const s = [];
@@ -653,7 +663,7 @@ async function buildReport(PDFLib, st, opt) {
     y -= hgt;
   }
   y -= 4;
-  for (const l of wrap("Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
+  for (const l of wrap((st.courses.some(r => r.keep && r.passFail) ? "Pass/Fail courses pass at 50%. " : "") + "Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
   y -= 6;
   for (const l of wrap("See attached Session Log for detailed account of time logged into Edgenuity and number of activities completed.", B, 10.5, W - 2 * M)) { need(14); text(l, M, y - 9, B); y -= 14; }
   y -= 8; need(14); text("Student is making Satisfactory Monthly progress as evidenced by gradebook snapshot:", M, y - 9, B); y -= 14;
@@ -699,7 +709,7 @@ function fileName(st, all, month) {
   return `${dup ? `${st.last}, ${st.first}` : st.last} - ${month} - MPR.pdf`;
 }
 
-return { CONCERNS, readPdf, looksLikeSkyward, looksLikeEdgenuity, parseEdgenuity, parseSkyward, letter, cleanCourse, combine, proposeChecks, formatDates, draftComment, claudePrompt, buildReport, pdfText, verifyText, fileName };
+return { CONCERNS, readPdf, looksLikeSkyward, looksLikeEdgenuity, parseEdgenuity, parseSkyward, letter, cleanCourse, applyGrade, combine, proposeChecks, formatDates, draftComment, claudePrompt, buildReport, pdfText, verifyText, fileName };
 })();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => {
@@ -831,14 +841,24 @@ function card(st) {
   const build = () => {
     body.replaceChildren();
     if (st.flags.length) body.append(el("ul", { class: "flags" }, st.flags.map(f => el("li", { text: f }))));
+    const regrade = () => { core.proposeChecks(st); if (st.commentSource === "quick draft") st.comment = core.draftComment(st); build(); refreshChips(); };
+    const gradeCell = r => {
+      if (!r.started) return el("td", { text: "—" });
+      const inp = el("input", { type: "number", class: "gradein", min: "0", max: "110", step: "0.1", value: r.actual.toFixed(1), "aria-label": "Actual grade for " + r.course,
+        onchange: e => { const v = parseFloat(e.target.value); if (isNaN(v) || v < 0 || v > 110) { e.target.value = r.actual.toFixed(1); return; } r.actual = Math.round(v * 10) / 10; core.applyGrade(r); regrade(); } });
+      return el("td", {}, inp, r.actual !== r.edgActual ? el("div", { class: "mini", text: "Edgenuity: " + r.edgActual.toFixed(1) + "%" }) : null);
+    };
     const rows = st.courses.map(r => el("tr", {},
-      el("td", {}, el("input", { type: "checkbox", checked: r.keep, "aria-label": "Include " + r.course, onchange: e => { r.keep = e.target.checked; core.proposeChecks(st); build(); refreshChips(); } })),
-      el("td", { text: r.course }), el("td", { text: r.started ? r.actual.toFixed(1) + "%" : "—" }), el("td", { text: r.letter }), el("td", { class: "mini", text: r.started ? r.overall.toFixed(1) + "%" : "—" }),
+      el("td", {}, el("input", { type: "checkbox", checked: r.keep, "aria-label": "Include " + r.course, onchange: e => { r.keep = e.target.checked; regrade(); } })),
+      el("td", { text: r.course }), gradeCell(r),
+      el("td", {}, r.started ? el("input", { type: "checkbox", checked: r.passFail, "aria-label": "Pass/Fail at 50% for " + r.course, onchange: e => { r.passFail = e.target.checked; core.applyGrade(r); regrade(); } }) : null),
+      el("td", { text: r.letter }), el("td", { class: "mini", text: r.started ? r.overall.toFixed(1) + "%" : "—" }),
       el("td", { text: r.started ? r.percent + "%" : "0%" }), el("td", { text: r.goalLabel.replace("Goal: ", "") }),
       el("td", { text: r.started ? (r.completeOk ? "Yes" : "No") : "No" })));
     body.append(el("div", { class: "scroll" }, el("table", { class: "courses" },
-      el("thead", {}, el("tr", {}, ["On report", "Course", "Actual grade", "Letter", "Overall (not on report)", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
-      el("tbody", {}, rows))));
+      el("thead", {}, el("tr", {}, ["On report", "Course", "Actual grade", "P/F", "Grade", "Overall", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
+      el("tbody", {}, rows))),
+      el("p", { class: "mini", text: "Type in the Actual grade box to add extra credit. Tick P/F to grade a course Pass/Fail (passes at 50%). Overall is shown for comparison only and is not on the report." }));
     const recips = el("div", { class: "recips" }, el("label", { class: "f", text: "Email recipients (untick anyone who must not receive it)" }),
       st.recipients.length ? st.recipients.map(r => el("label", {}, el("input", { type: "checkbox", checked: r.send, onchange: e => { r.send = e.target.checked; refreshChips(); } }),
         el("span", { text: `${r.name} (${r.relationship}) ${r.email}` }))) : el("p", { class: "mini", text: "No email on file." }));

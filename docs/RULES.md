@@ -4,7 +4,8 @@
 | --- | --- | --- |
 | Actual Grade | Edgenuity **Actual Grade** (AG): the grade on completed work, lowered when the student is behind pace. Never the Overall Grade. | Edgenuity |
 | Grade | Letter for the Actual Grade: A 93+, A- 90, B+ 87, B 83, B- 80, C+ 77, C 73, C- 70, D+ 67, D 60, F below 60 | Calculated |
-| Grade On Target? | Yes when the Actual Grade is 60% or above | Calculated |
+| Grade On Target? | Yes when the Actual Grade is 60% or above |
+| Teacher changes (web app) | The teacher can type a new Actual Grade (e.g. extra credit); the report uses it and the review screen shows the Edgenuity grade beside it. A course marked Pass/Fail shows Pass or Fail and passes at 50%. | Teacher | Calculated |
 | Percent Complete | % (Time), rounded | Edgenuity |
 | Goal | Where the student should be today: %Time x Overall / Actual, capped at 100%. "On pace" when Actual equals Overall | Calculated |
 | Completion On Target? | Yes when on pace or within 5 points of the goal | Calculated |

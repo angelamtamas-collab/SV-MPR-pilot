@@ -132,14 +132,24 @@ function card(st) {
   const build = () => {
     body.replaceChildren();
     if (st.flags.length) body.append(el("ul", { class: "flags" }, st.flags.map(f => el("li", { text: f }))));
+    const regrade = () => { core.proposeChecks(st); if (st.commentSource === "quick draft") st.comment = core.draftComment(st); build(); refreshChips(); };
+    const gradeCell = r => {
+      if (!r.started) return el("td", { text: "—" });
+      const inp = el("input", { type: "number", class: "gradein", min: "0", max: "110", step: "0.1", value: r.actual.toFixed(1), "aria-label": "Actual grade for " + r.course,
+        onchange: e => { const v = parseFloat(e.target.value); if (isNaN(v) || v < 0 || v > 110) { e.target.value = r.actual.toFixed(1); return; } r.actual = Math.round(v * 10) / 10; core.applyGrade(r); regrade(); } });
+      return el("td", {}, inp, r.actual !== r.edgActual ? el("div", { class: "mini", text: "Edgenuity: " + r.edgActual.toFixed(1) + "%" }) : null);
+    };
     const rows = st.courses.map(r => el("tr", {},
-      el("td", {}, el("input", { type: "checkbox", checked: r.keep, "aria-label": "Include " + r.course, onchange: e => { r.keep = e.target.checked; core.proposeChecks(st); build(); refreshChips(); } })),
-      el("td", { text: r.course }), el("td", { text: r.started ? r.actual.toFixed(1) + "%" : "—" }), el("td", { text: r.letter }), el("td", { class: "mini", text: r.started ? r.overall.toFixed(1) + "%" : "—" }),
+      el("td", {}, el("input", { type: "checkbox", checked: r.keep, "aria-label": "Include " + r.course, onchange: e => { r.keep = e.target.checked; regrade(); } })),
+      el("td", { text: r.course }), gradeCell(r),
+      el("td", {}, r.started ? el("input", { type: "checkbox", checked: r.passFail, "aria-label": "Pass/Fail at 50% for " + r.course, onchange: e => { r.passFail = e.target.checked; core.applyGrade(r); regrade(); } }) : null),
+      el("td", { text: r.letter }), el("td", { class: "mini", text: r.started ? r.overall.toFixed(1) + "%" : "—" }),
       el("td", { text: r.started ? r.percent + "%" : "0%" }), el("td", { text: r.goalLabel.replace("Goal: ", "") }),
       el("td", { text: r.started ? (r.completeOk ? "Yes" : "No") : "No" })));
     body.append(el("div", { class: "scroll" }, el("table", { class: "courses" },
-      el("thead", {}, el("tr", {}, ["On report", "Course", "Actual grade", "Letter", "Overall (not on report)", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
-      el("tbody", {}, rows))));
+      el("thead", {}, el("tr", {}, ["On report", "Course", "Actual grade", "P/F", "Grade", "Overall", "Complete", "Goal", "On target"].map(h => el("th", { text: h })))),
+      el("tbody", {}, rows))),
+      el("p", { class: "mini", text: "Type in the Actual grade box to add extra credit. Tick P/F to grade a course Pass/Fail (passes at 50%). Overall is shown for comparison only and is not on the report." }));
     const recips = el("div", { class: "recips" }, el("label", { class: "f", text: "Email recipients (untick anyone who must not receive it)" }),
       st.recipients.length ? st.recipients.map(r => el("label", {}, el("input", { type: "checkbox", checked: r.send, onchange: e => { r.send = e.target.checked; refreshChips(); } }),
         el("span", { text: `${r.name} (${r.relationship}) ${r.email}` }))) : el("p", { class: "mini", text: "No email on file." }));

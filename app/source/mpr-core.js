@@ -205,9 +205,17 @@ function courseRow(c) {
   const onPace = c.ag >= c.og - 0.05;
   const goal = onPace ? null : (c.ag > 0 ? Math.min(100, c.time * c.og / c.ag) : 100);
   // The report shows Edgenuity's ACTUAL grade (ag), not the Overall grade (og).
-  return { course: cleanCourse(c.name), started: true, actual: c.ag, overall: c.og, letter: letter(c.ag), gradeOk: c.ag >= 60,
+  return { course: cleanCourse(c.name), started: true, actual: c.ag, edgActual: c.ag, overall: c.og, passFail: false, letter: letter(c.ag), gradeOk: c.ag >= 60,
     percent: Math.round(c.time), goal, goalLabel: goal === null ? "Goal: on pace" : `Goal: ${Math.round(goal)}%`,
     completeOk: goal === null || c.time >= goal - 5, keep: true, src: c };
+}
+
+// Re-apply the grade rules after a teacher edits a grade (e.g. extra credit) or marks a course Pass/Fail.
+// Pass/Fail courses pass at 50%; letter-graded courses pass at 60%.
+export function applyGrade(r) {
+  if (!r.started) return;
+  r.gradeOk = r.actual >= (r.passFail ? 50 : 60);
+  r.letter = r.passFail ? (r.gradeOk ? "Pass" : "Fail") : letter(r.actual);
 }
 
 function matchSky(e, sky) {
@@ -256,7 +264,7 @@ export function proposeChecks(st) {
   const behind = started.filter(r => !r.completeOk);
   const notStarted = st.courses.filter(r => !r.started && r.keep);
   const failing = started.filter(r => !r.gradeOk);
-  const c = new Set();
+  const c = new Set([...(st.concerns || [])].filter(k => k === "communications" || k === "wslp"));
   if (st.attendance === "absent") c.add("attendance");
   if (behind.length >= 2 || (behind.length && started.length <= 2)) c.add("time");
   if (notStarted.length || (st.grade === "12" && behind.length >= 2) || failing.length) c.add("graduation");
@@ -291,7 +299,7 @@ export function draftComment(st) {
   const behind = started.filter(r => !r.completeOk).sort((a, b) => ((b.goal || 0) - b.percent) - ((a.goal || 0) - a.percent));
   const notStarted = st.courses.filter(r => !r.started && r.keep);
   const done = started.filter(r => r.percent >= 100);
-  const strong = started.filter(r => r.actual >= 90);
+  const strong = started.filter(r => !r.passFail && r.actual >= 90);
   const onPace = !behind.length && !notStarted.length;
   const tail = onPace ? " and is on pace in every course" : "";
   const s = [];
@@ -420,7 +428,7 @@ export async function buildReport(PDFLib, st, opt) {
     y -= hgt;
   }
   y -= 4;
-  for (const l of wrap("Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
+  for (const l of wrap((st.courses.some(r => r.keep && r.passFail) ? "Pass/Fail courses pass at 50%. " : "") + "Actual Grade is the Edgenuity Actual Grade: the grade on completed work, lowered when the student is behind pace. Percent Complete is time-weighted; Goal is where the student should be by this date based on the course calendar. Goal: on pace means the student is on or ahead of schedule.", I, 8, W - 2 * M)) { need(10); text(l, M, y - 7, I, 8, rgb(0.27, 0.27, 0.27)); y -= 10; }
   y -= 6;
   for (const l of wrap("See attached Session Log for detailed account of time logged into Edgenuity and number of activities completed.", B, 10.5, W - 2 * M)) { need(14); text(l, M, y - 9, B); y -= 14; }
   y -= 8; need(14); text("Student is making Satisfactory Monthly progress as evidenced by gradebook snapshot:", M, y - 9, B); y -= 14;
