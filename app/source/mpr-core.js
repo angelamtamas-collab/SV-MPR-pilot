@@ -488,7 +488,7 @@ export function studentStats(st) {
 }
 
 // Shared layout for the teacher-only PDFs (class summary, email list).
-async function pdfKit(PDFLib, title) {
+async function pdfKit(PDFLib, title, footer = true) {
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const doc = await PDFDocument.create();
   doc.setTitle(title); doc.setAuthor("Seaview Academy");
@@ -496,7 +496,7 @@ async function pdfKit(PDFLib, title) {
   const ink = rgb(0.06, 0.16, 0.23), teal = rgb(0.17, 0.44, 0.56), red = rgb(0.70, 0.21, 0.12), grey = rgb(0.4, 0.4, 0.4), line = rgb(0.8, 0.85, 0.88);
   const CW = W - 2 * M;
   const k = { doc, R, B, I, ink, teal, red, grey, line, CW, page: null, y: 0, pageNo: 0 };
-  k.newPage = () => { k.page = doc.addPage([W, H]); k.y = H - 46; k.pageNo++; k.page.drawText(safe(`${title}   |   page ${k.pageNo}`), { x: M, y: 24, size: 8, font: R, color: grey }); };
+  k.newPage = () => { k.page = doc.addPage([W, H]); k.y = H - 46; k.pageNo++; if (footer) k.page.drawText(safe(`${title}   |   page ${k.pageNo}`), { x: M, y: 24, size: 8, font: R, color: grey }); };
   k.newPage();
   k.need = h => { if (k.y - h < 40) k.newPage(); };
   k.write = (t, f = R, sz = 10, c = ink, x = M, w = CW) => { for (const l of wrap(t, f, sz, w)) { k.need(sz + 4); k.page.drawText(l, { x, y: k.y - sz, size: sz, font: f, color: c }); k.y -= sz + 4; } };
@@ -573,25 +573,11 @@ export async function buildSummary(PDFLib, students, globalFlags, opt) {
   return k.doc.save();
 }
 
-// Every student and family email for the month, for the teacher's records and for sending.
+// Every student and family address for the month, and nothing else, so the teacher can
+// select all, copy and paste into BCC. Only recipients ticked in the review step are included.
 export async function buildEmailList(PDFLib, students, opt) {
-  const k = await pdfKit(PDFLib, `MPR Email List - ${opt.month}`);
-  const sorted = [...students].sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
-  const sent = sorted.flatMap(st => st.recipients.filter(r => r.send));
-  k.title(`MPR Email List - ${opt.month}`, [opt.teacher && `Teacher: ${opt.teacher}`, `${students.length} students`, `${sent.length} email addresses`, `Subject: ${opt.subject}`].filter(Boolean).join("   |   "));
-  k.write("Only the recipients ticked in the review step are listed. Each student's report shows the same recipients at the top.", k.I, 8, k.grey);
-  k.heading("By student");
-  k.table([0.22, 0.08, 0.7], ["Student", "Grade", "Send to"], sorted.map(st => {
-    const rs = st.recipients.filter(r => r.send);
-    const off = st.recipients.filter(r => !r.send);
-    return [st.name, st.grade || "-", (rs.length ? rs.map(r => `${r.name} (${r.relationship}): ${r.email}`).join("\n") : "No email selected") +
-      (off.length ? `\nNot sending to: ${off.map(r => `${r.name} (${r.relationship})`).join(", ")}` : "")];
-  }));
-  const missing = sorted.filter(st => !st.recipients.some(r => r.send));
-  if (missing.length) { k.heading("No email address", k.red); k.write(missing.map(st => st.name).join(", ")); }
-  k.heading("All addresses (copy and paste)");
-  k.write("Student emails: " + (sorted.flatMap(st => st.recipients.filter(r => r.send && r.relationship === "student").map(r => r.email)).join("; ") || "none"), k.R, 9);
-  k.y -= 4;
-  k.write("Family emails: " + ([...new Set(sorted.flatMap(st => st.recipients.filter(r => r.send && r.relationship !== "student").map(r => r.email)))].join("; ") || "none"), k.R, 9);
+  const k = await pdfKit(PDFLib, `MPR Email List - ${opt.month}`, false);
+  const addrs = [...new Set(students.flatMap(st => st.recipients.filter(r => r.send).map(r => r.email.trim().toLowerCase())))];
+  k.write(addrs.length ? addrs.join("; ") : "No email addresses selected.", k.R, 11);
   return k.doc.save();
 }
